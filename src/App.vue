@@ -4,7 +4,9 @@
       <div class="space-y-6">
         <!-- Nixie tubes at the top -->
         <NixieClock v-if="systemInfoStore.systemInfo?.subtype === 'nixie'" />
+        <!-- Fibonacci clock -->
         <FibonacciClock v-else-if="systemInfoStore.systemInfo?.subtype === 'fibonacci'" />
+        <WordClock v-else-if="systemInfoStore.systemInfo?.subtype === 'wordclock'" />
 
         <!-- Configuration cards below -->
         <LedControlCard v-if="systemInfoStore.systemInfo?.subtype !== 'fibonacci'" />

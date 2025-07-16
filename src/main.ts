@@ -13,7 +13,7 @@ import { client } from './oas/client.gen';
 const app = createApp(App)
 
 client.setConfig({
-  baseUrl: 'http://192.168.0.237',
+  baseUrl: 'http://192.168.0.136',
 });
 
 app.use(ui)
