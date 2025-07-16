@@ -1,0 +1,42 @@
+{
+  "name": "clock-app",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint --ext .js,.vue src",
+    "typecheck": "vue-tsc -p ./tsconfig.app.json",
+    "generate-api": "openapi-ts -i swagger.yaml -o src/api"
+  },
+  "dependencies": {
+    "@hey-api/openapi-ts": "^0.78.3",
+    "@jaames/iro": "^5.5.2",
+    "@nuxt/ui-pro": "^3.1.0",
+    "pinia": "^3.0.2",
+    "tailwindcss": "^4.1.11",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^5.2.3",
+    "eslint": "^9.25.1",
+    "eslint-plugin-vue": "^10.0.0",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.31.0",
+    "vite": "^6.3.3",
+    "vue-eslint-parser": "^10.2.0",
+    "vue-tsc": "^2.2.10"
+  },
+  "resolutions": {
+    "unimport": "4.1.1"
+  },
+  "pnpm": {
+    "ignoredBuiltDependencies": [
+      "@tailwindcss/oxide",
+      "esbuild",
+      "vue-demi"
+    ]
+  },
+  "packageManager": "pnpm@10.13.1+sha512.37ebf1a5c7a30d5fabe0c5df44ee8da4c965ca0c5af3dbab28c3a1681b70a256218d05c81c9c0dcf767ef6b8551eb5b960042b9ed4300c59242336377e01cfad"
+}
