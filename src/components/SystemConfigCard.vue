@@ -25,6 +25,9 @@
           <span class="text-sm text-gray-500 dark:text-gray-400">
             Automatically detect timezone from location
           </span>
+          <div v-if="store.isAutoTimezone" class="text-xs text-gray-500 dark:text-gray-400 pt-2">
+            Current timezone: {{ store.systemConfig.timezone }}
+          </div>
         </div>
         <USwitch
           :model-value="store.isAutoTimezone"
@@ -34,11 +37,7 @@
         />
       </div>
 
-      <div v-if="store.isAutoTimezone" class="text-sm text-gray-500 dark:text-gray-400">
-        Current timezone: {{ store.systemConfig.timezone }}
-      </div>
-
-      <div v-else class="space-y-4">
+      <div v-if="!store.isAutoTimezone" class="space-y-4">
         <UFormGroup label="Timezone">
           <USelectMenu
             :model-value="store.timezoneOptions.find(option => option.value === store.systemConfig!.timezone)"
@@ -57,7 +56,7 @@
         <USelectMenu
           :model-value="store.ntpServerOptions.find(option => option.value === store.systemConfig!.ntp_server) || { label: store.systemConfig!.ntp_server, value: store.systemConfig!.ntp_server }"
           @update:model-value="handleNtpServerChange"
-          :options="store.ntpServerOptions"
+          :items="store.ntpServerOptions"
           value-attribute="value"
           option-attribute="label"
           searchable
