@@ -25,14 +25,8 @@
 
     <div v-else class="space-y-8">
       <!-- Brightness Control -->
-      <UFormField label="Brightness" :description="`${store.brightness}%`">
-        <USlider
-          :model-value="store.brightness"
-          @update:model-value="handleBrightnessChange"
-          :min="0"
-          :max="255"
-          :step="1"
-        />
+      <UFormField label="Brightness" :description="`${brightness}%`">
+        <USlider v-model="brightness" :min="0" :max="255" :step="1" />
       </UFormField>
 
       <!-- Theme Selection -->
@@ -52,10 +46,37 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, computed } from 'vue'
+import { onMounted, computed, ref, watch } from 'vue'
 import { useFibonacciStore } from '@/stores/fibonacci'
 
 const store = useFibonacciStore()
+
+// Local brightness for responsive slider
+const brightness = ref(store.brightness)
+// Sync local brightness when store updates
+watch(
+  () => store.brightness,
+  (val) => {
+    brightness.value = val
+  }
+)
+
+// Debounce utility
+const debounce = <T extends (...args: any[]) => void>(fn: T, delay = 200) => {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}
+
+// Debounced store setter for brightness
+const debouncedSetBrightness = debounce((val: number) => {
+  store.setBrightness(val).catch((err) => console.error('Failed to update brightness:', err))
+}, 200)
+
+// Watch local brightness changes to update store
+watch(brightness, (val) => debouncedSetBrightness(val))
 
 // Computed selection object for USelectMenu
 const selectedOption = computed(() =>
@@ -64,9 +85,6 @@ const selectedOption = computed(() =>
 
 const handlePowerChange = async (val: boolean) => {
   await store.setPower(val)
-}
-const handleBrightnessChange = async (val: number) => {
-  await store.setBrightness(val)
 }
 // Accept option object from USelectMenu and extract value
 const handleThemeChange = async (opt: { label: string; value: number }) => {

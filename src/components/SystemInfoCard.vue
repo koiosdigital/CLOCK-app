@@ -1,5 +1,5 @@
 <template>
-  <div v-if="store.loading && !store.systemInfo" class="text-center py-8">
+  <div v-if="store.loading || !store.systemInfo" class="text-center py-8">
     <UIcon
       name="i-heroicons-arrow-path"
       class="animate-spin h-8 w-8 mx-auto mb-4 text-primary-500"

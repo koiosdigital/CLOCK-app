@@ -51,26 +51,10 @@
             />
           </UFormField>
           <UFormField label="Brightness">
-            <USlider
-              :model-value="store.ledConfig.brightness"
-              @update:model-value="store.setBrightness"
-              :min="0"
-              :max="255"
-              :step="1"
-              size="lg"
-              class="w-full"
-            />
+            <USlider v-model="brightness" :min="0" :max="255" :step="1" size="lg" class="w-full" />
           </UFormField>
           <UFormField label="Speed">
-            <USlider
-              :model-value="store.ledConfig.speed"
-              @update:model-value="store.setSpeed"
-              :min="1"
-              :max="100"
-              :step="1"
-              size="lg"
-              class="w-full"
-            />
+            <USlider v-model="speed" :min="1" :max="100" :step="1" size="lg" class="w-full" />
           </UFormField>
         </div>
       </UCard>
@@ -100,7 +84,7 @@
               <button
                 v-for="preset in colorPresets"
                 :key="preset.hex"
-                @click="store.setColorFromHex(preset.hex)"
+                @click="debouncedSetColor(preset.hex)"
                 class="w-10 h-10 rounded-lg border-2 hover:border-gray-400 dark:hover:border-gray-500 transition-all duration-200 hover:scale-110 shadow-md"
                 :style="{ backgroundColor: preset.hex }"
                 :title="preset.name"
@@ -114,14 +98,47 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, onUnmounted, ref, nextTick } from 'vue'
+import { onMounted, onUnmounted, ref, nextTick, watch } from 'vue'
 import { useLedStore } from '@/stores/led'
 // @ts-ignore
 import iro from '@jaames/iro'
 
+// Debounce utility
+const debounce = <T extends (...args: any[]) => void>(fn: T, delay = 300) => {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}
+
 const store = useLedStore()
 const colorPickerRef = ref<HTMLElement>()
 let colorPicker: any = null
+
+// Local refs for sliders
+const brightness = ref(store.ledConfig?.brightness ?? 0)
+const speed = ref(store.ledConfig?.speed ?? 0)
+
+// Debounced store calls
+const debouncedSetBrightness = debounce((val: number) => store.setBrightness(val), 200)
+const debouncedSetSpeed = debounce((val: number) => store.setSpeed(val), 200)
+const debouncedSetColor = debounce((hex: string) => store.setColorFromHex(hex), 200)
+
+// Sync local refs when config loads
+watch(
+  () => store.ledConfig,
+  (config) => {
+    if (config) {
+      brightness.value = config.brightness
+      speed.value = config.speed
+    }
+  }
+)
+
+// Watch local refs to call debounced store setter
+watch(brightness, (val) => debouncedSetBrightness(val))
+watch(speed, (val) => debouncedSetSpeed(val))
 
 // Color presets
 const colorPresets = [
@@ -179,7 +196,7 @@ const initColorPicker = async () => {
     // Handle color changes
     colorPicker.on('color:change', (color: any) => {
       const hex = color.hexString
-      store.setColorFromHex(hex)
+      debouncedSetColor(hex)
     })
   } catch (error) {
     console.warn('Color picker initialization failed:', error)

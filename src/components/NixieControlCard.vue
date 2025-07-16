@@ -26,13 +26,7 @@
     <div v-else-if="store.nixieConfig" class="space-y-8">
       <!-- Brightness Control -->
       <UFormField label="Brightness" :description="`${store.nixieConfig.brightness}%`">
-        <USlider
-          :model-value="store.nixieConfig.brightness"
-          @update:model-value="handleBrightnessChange"
-          :min="0"
-          :max="100"
-          :step="1"
-        />
+        <USlider v-model="brightness" :min="0" :max="100" :step="1" />
       </UFormField>
 
       <!-- Time Format Control -->
@@ -55,10 +49,36 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, ref, watch } from 'vue'
 import { useNixieStore } from '@/stores/nixie'
 
+// Debounce utility
+const debounce = <T extends (...args: any[]) => void>(fn: T, delay = 200) => {
+  let timer: ReturnType<typeof setTimeout>
+  return (...args: Parameters<T>) => {
+    clearTimeout(timer)
+    timer = setTimeout(() => fn(...args), delay)
+  }
+}
+
 const store = useNixieStore()
+const brightness = ref(store.nixieConfig?.brightness ?? 0)
+
+// Sync local brightness when store updates
+watch(
+  () => store.nixieConfig?.brightness,
+  (val) => {
+    if (val !== undefined) brightness.value = val
+  }
+)
+
+// Debounced store setter for brightness
+const debouncedSetBrightness = debounce((val: number) => {
+  store.setBrightness(val).catch((err) => console.error('Failed to update brightness:', err))
+}, 200)
+
+// Watch local brightness and update store
+watch(brightness, (val) => debouncedSetBrightness(val))
 
 // Event handlers
 const handlePowerChange = async (value: boolean) => {
@@ -66,14 +86,6 @@ const handlePowerChange = async (value: boolean) => {
     await store.setPower(value)
   } catch (error) {
     console.error('Failed to update power:', error)
-  }
-}
-
-const handleBrightnessChange = async (value: number) => {
-  try {
-    await store.setBrightness(value)
-  } catch (error) {
-    console.error('Failed to update brightness:', error)
   }
 }
 
