@@ -53,7 +53,7 @@ jobs:
       - name: Create GitHub Release
         uses: ncipollo/release-action@v1
         with:
-          artifacts: dist/_esp32/static_files.h
+          artifacts: dist/dist/_esp32/static_files.h
           tag: ${{ github.ref_name }}
           token: ${{ secrets.GITHUB_TOKEN }}
           name: Release ${{ github.ref_name }}
