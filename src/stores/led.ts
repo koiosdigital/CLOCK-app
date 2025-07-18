@@ -1,12 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { LedConfig, LedConfigRequest } from '@/oas/types.gen'
-import { getApiLeds, postApiLeds } from '@/oas'
+import type { LedConfig } from '@/oas/types.gen'
+import { getApiLeds, postApiLeds } from '@/oas/sdk.gen'
 
 export const useLedStore = defineStore('led', () => {
   // State
   const ledConfig = ref<LedConfig | null>(null)
   const loading = ref(false)
+  const error = ref<string | null>(null)
 
   const ledColorHex = computed(() => {
     if (!ledConfig.value?.color) return '#ffffff'
@@ -19,36 +20,44 @@ export const useLedStore = defineStore('led', () => {
     { label: 'Blink', value: 'blink' },
     { label: 'Breathe', value: 'breathe' },
     { label: 'Cyclic', value: 'cyclic' },
-    { label: 'Rainbow', value: 'rainbow' }
+    { label: 'Rainbow', value: 'rainbow' },
+    { label: 'Color Wipe', value: 'color_wipe' },
+    { label: 'Theater Chase', value: 'theater_chase' },
+    { label: 'Sparkle', value: 'sparkle' },
   ]
 
   // HTTP API Actions with text/plain content type to bypass preflight
   const fetchLedConfig = async () => {
     loading.value = true
+    error.value = null
 
-    const response = await getApiLeds();
-    if (response.error) {
-      throw new Error(`HTTP error! status: ${response.error.error}`)
+    try {
+      const response = await getApiLeds()
+      if (response.error) {
+        throw new Error(String(response.error))
+      }
+
+      ledConfig.value = response.data || null
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to fetch LED config'
+      throw err
+    } finally {
+      loading.value = false
     }
-
-    ledConfig.value = response.data;
-    loading.value = false
   }
 
-  const updateLedConfig = async (update: LedConfigRequest) => {
-    await postApiLeds({
-      body: update,
-      headers: {
-        'Content-Type': 'text/plain'
+  const updateLedConfig = async (update: LedConfig) => {
+    try {
+      await postApiLeds({ body: update })
+      const response = await getApiLeds()
+      if (response.error) {
+        throw new Error(String(response.error))
       }
-    })
-
-    const response = await getApiLeds();
-    if (response.error) {
-      throw new Error(`HTTP error! status: ${response.error.error}`)
+      ledConfig.value = response.data || null
+    } catch (err) {
+      error.value = err instanceof Error ? err.message : 'Failed to update LED config'
+      throw err
     }
-
-    ledConfig.value = response.data;
   }
 
   // Utility Actions
@@ -83,7 +92,6 @@ export const useLedStore = defineStore('led', () => {
   const reset = () => {
     ledConfig.value = null
     error.value = null
-    lastUpdated.value = null
     loading.value = false
   }
 
@@ -101,6 +109,7 @@ export const useLedStore = defineStore('led', () => {
     // State
     ledConfig,
     loading,
+    error,
 
     ledColorHex,
     modeOptions,

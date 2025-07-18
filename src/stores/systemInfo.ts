@@ -1,7 +1,13 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getApiSystemAbout } from '@/oas/sdk.gen'
-import type { SystemInfo } from '@/oas/types.gen'
+import { getApiAbout } from '@/oas/sdk.gen'
+
+type SystemInfo = {
+  model?: string
+  type?: string
+  subtype?: 'nixie' | 'fibonacci' | 'wordclock'
+  version?: string
+}
 
 export const useSystemInfoStore = defineStore('systemInfo', () => {
   // State
@@ -32,7 +38,11 @@ export const useSystemInfoStore = defineStore('systemInfo', () => {
     error.value = null
 
     try {
-      const response = await getApiSystemAbout()
+      const response = await getApiAbout()
+
+      if (response.error) {
+        throw new Error(String(response.error))
+      }
 
       if (response.data) {
         systemInfo.value = response.data

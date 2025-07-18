@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { NixieConfig, NixieConfigRequest } from '@/oas/types.gen'
+import type { NixieConfig } from '@/oas/types.gen'
 import { getApiNixie, postApiNixie } from '@/oas/sdk.gen'
 import { useSystemConfigStore } from './systemConfig'
 
@@ -82,10 +82,10 @@ export const useNixieStore = defineStore('nixie', () => {
     try {
       const response = await getApiNixie()
       if (response.error) {
-        throw new Error(`HTTP error! status: ${response.error}`)
+        throw new Error(String(response.error))
       }
 
-      nixieConfig.value = response.data
+      nixieConfig.value = response.data ?? null
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch Nixie config'
@@ -95,17 +95,14 @@ export const useNixieStore = defineStore('nixie', () => {
     }
   }
 
-  const updateNixieConfig = async (update: NixieConfigRequest) => {
+  const updateNixieConfig = async (update: NixieConfig) => {
     loading.value = true
     error.value = null
 
     try {
-      const response = await postApiNixie({
-        body: update,
-        headers: { 'Content-Type': 'text/plain' }
-      })
+      const response = await postApiNixie({ body: update })
       if (response.error) {
-        throw new Error(`HTTP error! status: ${response.error}`)
+        throw new Error(String(response.error))
       }
 
       // Fetch updated config

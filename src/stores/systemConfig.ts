@@ -1,7 +1,12 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SystemConfig, SystemConfigRequest, Timezone } from '@/oas/types.gen'
+import type { SystemConfig } from '@/oas/types.gen'
 import { getApiSystemConfig, postApiSystemConfig, getApiTimeZonedb } from '@/oas/sdk.gen'
+
+type Timezone = {
+  name?: string
+  rule?: string
+}
 
 export const useSystemConfigStore = defineStore('systemConfig', () => {
   // State
@@ -9,7 +14,7 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
   const availableTimezones = ref<Timezone[]>([])
   const loading = ref(false)
   const error = ref<string | null>(null)
-  const lastUpdated = ref<Date | null>(null)  // Computed
+  const lastUpdated = ref<Date | null>(null)
   const isAutoTimezone = computed(() => systemConfig.value?.auto_timezone ?? false)
 
   const timezoneDisplay = computed(() => {
@@ -50,10 +55,11 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
 
     // Sort timezones by region and city for better UX
     return availableTimezones.value
-      .map(tz => ({
-        label: formatTimezoneLabel(tz.name),
-        value: tz.name
+      .map((tz: Timezone) => ({
+        label: formatTimezoneLabel(tz.name ?? ''),
+        value: tz.name ?? ''
       }))
+      .filter(tz => tz.value !== '') // Remove invalid timezones
       .sort((a, b) => a.label.localeCompare(b.label))
   })
 
@@ -98,7 +104,7 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
         console.warn('Failed to fetch timezones from API, using fallback list')
         return
       }
-      availableTimezones.value = response.data
+      availableTimezones.value = response.data || []
     } catch (err) {
       console.warn('Failed to fetch available timezones:', err)
       // Will fall back to hardcoded list in computed property
@@ -112,10 +118,10 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
     try {
       const response = await getApiSystemConfig()
       if (response.error) {
-        throw new Error(`HTTP error! status: ${response.error}`)
+        throw new Error(String(response.error))
       }
 
-      systemConfig.value = response.data
+      systemConfig.value = response.data || null
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch system config'
@@ -125,14 +131,14 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
     }
   }
 
-  const updateSystemConfig = async (update: SystemConfigRequest) => {
+  const updateSystemConfig = async (update: SystemConfig) => {
     loading.value = true
     error.value = null
 
     try {
-      const response = await postApiSystemConfig({ body: update, headers: { 'Content-Type': 'text/plain' } })
+      const response = await postApiSystemConfig({ body: update })
       if (response.error) {
-        throw new Error(`HTTP error! status: ${response.error}`)
+        throw new Error(String(response.error))
       }
 
       // Fetch updated config
