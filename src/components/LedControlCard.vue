@@ -130,8 +130,8 @@ watch(
   () => store.ledConfig,
   (config) => {
     if (config) {
-      brightness.value = config.brightness
-      speed.value = config.speed
+      brightness.value = config.brightness ?? 0
+      speed.value = config.speed ?? 0
     }
   }
 )

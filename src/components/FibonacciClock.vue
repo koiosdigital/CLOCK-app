@@ -71,7 +71,7 @@ function calcBits(value: number, offset: number) {
 // Remove cellColors; compute squareColors from bits directly
 const squareColors = computed(() => {
   const { hour, minute } = localTime.value
-  const theme = store.fibonacciConfig?.themes.find((t) => t.id === store.selectedTheme) || {
+  const theme = store.fibonacciConfig?.themes?.find((t) => t.id === store.selectedTheme) || {
     hour_color: '#000',
     minute_color: '#000',
     both_color: '#000',

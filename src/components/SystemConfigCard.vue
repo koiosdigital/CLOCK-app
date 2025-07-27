@@ -95,15 +95,13 @@ const store = useSystemConfigStore()
 
 // Local state
 const hostnameInput = ref('')
-const showRestartConfirm = ref(false)
-const restarting = ref(false)
 
 // Initialize hostname input when systemConfig loads
 watch(
   () => store.systemConfig,
   (config) => {
     if (config) {
-      hostnameInput.value = config.wifi_hostname
+      hostnameInput.value = config.wifi_hostname ?? ''
     }
   },
   { immediate: true }

@@ -1,7 +1,7 @@
 <template>
   <div class="nixie-clock-container">
     <!-- Nixie tubes display -->
-    <div class="nixie-display flex items-center justify-center gap-4">
+    <div class="nixie-display" v-if="store.brightnessLevel">
       <!-- Hours -->
       <div class="nixie-pair">
         <NixieTube
@@ -17,7 +17,7 @@
       </div>
 
       <!-- Separator dots with fixed width -->
-      <div class="separator-dots-container" style="width: 2rem">
+      <div class="separator-dots-container">
         <div class="separator-dots">
           <div
             class="dot"
@@ -53,7 +53,7 @@
       </div>
 
       <!-- Separator dots -->
-      <div class="separator-dots-container" style="width: 2rem">
+      <div class="separator-dots-container">
         <div class="separator-dots">
           <div
             class="dot"
@@ -131,10 +131,13 @@ onUnmounted(() => {
   position: relative;
   background: linear-gradient(145deg, #1a1a1a, #000000);
   border-radius: 1rem;
-  padding: 2rem;
+  padding: 1rem;
   border: 4px solid #374151;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   min-height: 200px;
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -145,32 +148,62 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 1rem;
+  gap: clamp(0.25rem, 2vw, 1rem);
   margin-bottom: 1rem;
+  width: 100%;
+  max-width: 100%;
+  flex-wrap: nowrap;
+  scale: var(--nixie-scale, 1);
+  transform-origin: center;
+}
+
+@media (max-width: 640px) {
+  .nixie-display {
+    --nixie-scale: 0.7;
+  }
+}
+
+@media (max-width: 480px) {
+  .nixie-display {
+    --nixie-scale: 0.6;
+  }
+}
+
+@media (max-width: 380px) {
+  .nixie-display {
+    --nixie-scale: 0.5;
+  }
 }
 
 .nixie-pair {
   display: flex;
-  gap: 0.5rem;
+  gap: clamp(0.125rem, 1vw, 0.5rem);
+  flex-shrink: 0;
 }
 
 .separator-dots {
   display: flex;
   flex-direction: column;
-  gap: 0.75rem;
+  gap: clamp(0.375rem, 1.5vw, 0.75rem);
   align-items: center;
   justify-content: center;
-  height: 120px;
-  padding: 0 0.5rem;
+  height: clamp(80px, 15vw, 120px);
+  padding: 0 clamp(0.25rem, 1vw, 0.5rem);
+}
+
+.separator-dots-container {
+  width: clamp(1rem, 3vw, 2rem);
+  flex-shrink: 0;
 }
 
 .dot {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: clamp(0.5rem, 1.5vw, 0.75rem);
+  height: clamp(0.5rem, 1.5vw, 0.75rem);
   border-radius: 50%;
   background: #ff6b35;
   box-shadow: 0 0 10px #ff6b35, 0 0 20px #ff6b35, 0 0 30px #ff6b35;
   transition: all 0.3s ease;
+  flex-shrink: 0;
 }
 
 .dot.visible {
@@ -184,10 +217,26 @@ onUnmounted(() => {
 
 .time-format-indicator {
   color: #fed7aa;
-  font-size: 0.875rem;
+  font-size: clamp(0.75rem, 2vw, 0.875rem);
   font-family: 'Courier New', monospace;
   opacity: 0.6;
   text-shadow: 0 0 5px #ff6b35;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.timezone-info {
+  display: inline-block;
+}
+
+@media (max-width: 480px) {
+  .timezone-info {
+    display: block;
+    margin-top: 0.25rem;
+  }
 }
 
 @keyframes pulse-glow {
@@ -203,9 +252,5 @@ onUnmounted(() => {
 .dark .nixie-clock-container {
   border-color: #374151;
   background: linear-gradient(145deg, #111827, #000000);
-}
-
-.separator-dots-container {
-  width: 2rem; /* Fixed width to prevent layout shifts */
 }
 </style>
