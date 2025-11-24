@@ -1,13 +1,61 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { LedConfig } from '@/oas/types.gen'
-import { getApiLeds, postApiLeds } from '@/oas/sdk.gen'
+import type { components } from './api'
+import { apiClient } from './apiClient'
+
+type LedChannelState = components['schemas']['LEDChannelState']
+type LedChannelConfig = components['schemas']['LEDChannelConfig']
+type LedColor = components['schemas']['Color']
+
+type LedStoreState = LedChannelState & { mode: string }
+type LedUpdate = Partial<{
+  mode: string
+  brightness: number
+  speed: number
+  on: boolean
+  color: LedColor
+}>
+
+type EffectOption = { label: string; value: string }
+
+const DEFAULT_CHANNEL_INDEX = 0
+
+const FALLBACK_EFFECTS: EffectOption[] = [
+  { label: 'Solid', value: 'solid' },
+  { label: 'Blink', value: 'blink' },
+  { label: 'Breathe', value: 'breathe' },
+  { label: 'Cyclic', value: 'cyclic' },
+  { label: 'Rainbow', value: 'rainbow' },
+  { label: 'Color Wipe', value: 'color_wipe' },
+  { label: 'Theater Chase', value: 'theater_chase' },
+  { label: 'Sparkle', value: 'sparkle' }
+]
+
+const toEffectId = (mode: string) => mode.toUpperCase()
+const toModeValue = (effectId: string) => effectId.toLowerCase()
+
+const mapChannelStateToStore = (state: LedChannelState): LedStoreState => ({
+  ...state,
+  mode: toModeValue(state.effect_id)
+})
+
+const buildPayload = (update: LedUpdate): LedChannelConfig => {
+  const payload: LedChannelConfig = {}
+  if (update.mode !== undefined) payload.effect_id = toEffectId(update.mode)
+  if (update.brightness !== undefined) payload.brightness = update.brightness
+  if (update.speed !== undefined) payload.speed = update.speed
+  if (update.on !== undefined) payload.on = update.on
+  if (update.color !== undefined) payload.color = update.color
+  return payload
+}
 
 export const useLedStore = defineStore('led', () => {
   // State
-  const ledConfig = ref<LedConfig | null>(null)
+  const ledConfig = ref<LedStoreState | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  const effectsLoaded = ref(false)
+  const modeOptions = ref<EffectOption[]>([...FALLBACK_EFFECTS])
 
   const ledColorHex = computed(() => {
     if (!ledConfig.value?.color) return '#ffffff'
@@ -15,29 +63,34 @@ export const useLedStore = defineStore('led', () => {
     return `#${r.toString(16).padStart(2, '0')}${g.toString(16).padStart(2, '0')}${b.toString(16).padStart(2, '0')}`
   })
 
-  const modeOptions = [
-    { label: 'Solid', value: 'solid' },
-    { label: 'Blink', value: 'blink' },
-    { label: 'Breathe', value: 'breathe' },
-    { label: 'Cyclic', value: 'cyclic' },
-    { label: 'Rainbow', value: 'rainbow' },
-    { label: 'Color Wipe', value: 'color_wipe' },
-    { label: 'Theater Chase', value: 'theater_chase' },
-    { label: 'Sparkle', value: 'sparkle' },
-  ]
+  const fetchEffectOptions = async (force = false) => {
+    if (effectsLoaded.value && !force) return
+    try {
+      const { data, error: effectError } = await apiClient.GET('/api/led/effects')
+      if (effectError) throw effectError
+      if (data) {
+        modeOptions.value = data.map((effect: { id: string; name: string }) => ({
+          label: effect.name,
+          value: toModeValue(effect.id)
+        }))
+      }
+    } catch (err) {
+      console.warn('Failed to fetch LED effects, using fallback list', err)
+    } finally {
+      effectsLoaded.value = true
+    }
+  }
 
-  // HTTP API Actions with text/plain content type to bypass preflight
   const fetchLedConfig = async () => {
     loading.value = true
     error.value = null
 
     try {
-      const response = await getApiLeds()
-      if (response.error) {
-        throw new Error(String(response.error))
-      }
-
-      ledConfig.value = response.data || null
+      const { data, error: fetchError } = await apiClient.GET('/api/led/channel/{channelIndex}', {
+        params: { path: { channelIndex: DEFAULT_CHANNEL_INDEX } }
+      })
+      if (fetchError) throw fetchError
+      ledConfig.value = data ? mapChannelStateToStore(data) : null
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch LED config'
       throw err
@@ -46,14 +99,21 @@ export const useLedStore = defineStore('led', () => {
     }
   }
 
-  const updateLedConfig = async (update: LedConfig) => {
+  const updateLedConfig = async (update: LedUpdate) => {
+    const payload = buildPayload(update)
+    if (Object.keys(payload).length === 0) return
+
     try {
-      await postApiLeds({ body: update })
-      const response = await getApiLeds()
-      if (response.error) {
-        throw new Error(String(response.error))
+      const { data, error: updateError } = await apiClient.POST('/api/led/channel/{channelIndex}', {
+        params: { path: { channelIndex: DEFAULT_CHANNEL_INDEX } },
+        body: payload
+      })
+      if (updateError) throw updateError
+      if (data) {
+        ledConfig.value = mapChannelStateToStore(data)
+      } else {
+        await fetchLedConfig()
       }
-      ledConfig.value = response.data || null
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update LED config'
       throw err
@@ -62,7 +122,7 @@ export const useLedStore = defineStore('led', () => {
 
   // Utility Actions
   const setColor = (r: number, g: number, b: number, w?: number) => {
-    const color = w !== undefined ? { r, g, b, w } : { r, g, b }
+    const color: LedColor = w !== undefined ? { r, g, b, w } : { r, g, b }
     updateLedConfig({ color })
   }
 
@@ -77,7 +137,7 @@ export const useLedStore = defineStore('led', () => {
     updateLedConfig({ brightness: Math.max(0, Math.min(255, brightness)) })
   }
 
-  const setMode = (mode: LedConfig['mode']) => {
+  const setMode = (mode: string) => {
     updateLedConfig({ mode })
   }
 
@@ -93,16 +153,17 @@ export const useLedStore = defineStore('led', () => {
     ledConfig.value = null
     error.value = null
     loading.value = false
+    effectsLoaded.value = false
+    modeOptions.value = [...FALLBACK_EFFECTS]
   }
 
-  const refresh = () => {
-    return fetchLedConfig()
-  }
+  const refresh = () => fetchLedConfig()
 
   const initialize = async () => {
-    if (!ledConfig.value && !loading.value) {
-      await fetchLedConfig()
-    }
+    await Promise.all([
+      fetchEffectOptions(),
+      ledConfig.value || loading.value ? Promise.resolve() : fetchLedConfig()
+    ])
   }
 
   return {
@@ -116,6 +177,7 @@ export const useLedStore = defineStore('led', () => {
 
     // HTTP Actions
     fetchLedConfig,
+    fetchEffectOptions,
     updateLedConfig,
 
     // Utility Actions

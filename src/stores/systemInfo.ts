@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import { getApiAbout } from '@/oas/sdk.gen'
+import { apiClient } from './apiClient'
 
 type SystemInfo = {
   model?: string
@@ -38,14 +38,14 @@ export const useSystemInfoStore = defineStore('systemInfo', () => {
     error.value = null
 
     try {
-      const response = await getApiAbout()
+      const { data, error: fetchError } = await apiClient.GET('/api/about')
 
-      if (response.error) {
-        throw new Error(String(response.error))
+      if (fetchError) {
+        throw fetchError
       }
 
-      if (response.data) {
-        systemInfo.value = response.data
+      if (data) {
+        systemInfo.value = data
         lastUpdated.value = new Date()
       } else {
         throw new Error('No system information received')

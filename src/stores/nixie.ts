@@ -1,8 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { NixieConfig } from '@/oas/types.gen'
-import { getApiNixie, postApiNixie } from '@/oas/sdk.gen'
+import type { components } from './api'
+import { apiClient } from './apiClient'
 import { useSystemConfigStore } from './systemConfig'
+
+type NixieConfig = components['schemas']['NixieConfig']
+type NixieConfigUpdate = components['schemas']['NixieConfigUpdate']
 
 export const useNixieStore = defineStore('nixie', () => {
   // State
@@ -80,12 +83,12 @@ export const useNixieStore = defineStore('nixie', () => {
     error.value = null
 
     try {
-      const response = await getApiNixie()
-      if (response.error) {
-        throw new Error(String(response.error))
+      const { data, error: fetchError } = await apiClient.GET('/api/nixie')
+      if (fetchError) {
+        throw fetchError
       }
 
-      nixieConfig.value = response.data ?? null
+      nixieConfig.value = data ?? null
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch Nixie config'
@@ -95,18 +98,22 @@ export const useNixieStore = defineStore('nixie', () => {
     }
   }
 
-  const updateNixieConfig = async (update: NixieConfig) => {
+  const updateNixieConfig = async (update: NixieConfigUpdate) => {
     loading.value = true
     error.value = null
 
     try {
-      const response = await postApiNixie({ body: update })
-      if (response.error) {
-        throw new Error(String(response.error))
+      const { data, error: updateError } = await apiClient.POST('/api/nixie', { body: update })
+      if (updateError) {
+        throw updateError
       }
 
-      // Fetch updated config
-      await fetchNixieConfig()
+      if (data) {
+        nixieConfig.value = data
+        lastUpdated.value = new Date()
+      } else {
+        await fetchNixieConfig()
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update Nixie config'
       console.error('Failed to update Nixie config:', err)

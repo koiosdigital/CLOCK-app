@@ -1,7 +1,11 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { FibonacciConfig, FibonacciConfigUpdate, FibonacciTheme } from '@/oas/types.gen'
-import { getApiFibonacci, postApiFibonacci } from '@/oas/sdk.gen'
+import type { components } from './api'
+import { apiClient } from './apiClient'
+
+type FibonacciConfig = components['schemas']['FibonacciConfig']
+type FibonacciConfigUpdate = components['schemas']['FibonacciConfigUpdate']
+type FibonacciTheme = components['schemas']['FibonacciTheme']
 
 export const useFibonacciStore = defineStore('fibonacci', () => {
   // State
@@ -12,7 +16,10 @@ export const useFibonacciStore = defineStore('fibonacci', () => {
   // Computed
   const themes = computed<FibonacciTheme[]>(() => fibonacciConfig.value?.themes ?? [])
   const themeOptions = computed(() =>
-    themes.value.map(theme => ({ label: theme.name ?? 'Unknown', value: theme.id ?? 0 }))
+    themes.value.map((theme: FibonacciTheme) => ({
+      label: theme.name ?? 'Unknown',
+      value: theme.id ?? 0
+    }))
   )
   const selectedTheme = computed(() => fibonacciConfig.value?.theme_id ?? null)
   const brightness = computed(() => fibonacciConfig.value?.brightness ?? 0)
@@ -23,9 +30,9 @@ export const useFibonacciStore = defineStore('fibonacci', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await getApiFibonacci()
-      if (response.error) throw new Error(String(response.error))
-      fibonacciConfig.value = response.data ?? null
+      const { data, error: fetchError } = await apiClient.GET('/api/fibonacci')
+      if (fetchError) throw fetchError
+      fibonacciConfig.value = data ?? null
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch Fibonacci config'
       console.error('Fibonacci fetch error:', err)
@@ -38,9 +45,13 @@ export const useFibonacciStore = defineStore('fibonacci', () => {
     loading.value = true
     error.value = null
     try {
-      const response = await postApiFibonacci({ body: update })
-      if (response.error) throw new Error(String(response.error))
-      await fetchFibonacciConfig()
+      const { data, error: updateError } = await apiClient.POST('/api/fibonacci', { body: update })
+      if (updateError) throw updateError
+      if (data) {
+        fibonacciConfig.value = data
+      } else {
+        await fetchFibonacciConfig()
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update Fibonacci config'
       console.error('Fibonacci update error:', err)

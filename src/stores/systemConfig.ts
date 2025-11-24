@@ -1,11 +1,19 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { SystemConfig } from '@/oas/types.gen'
-import { getApiSystemConfig, postApiSystemConfig, getApiTimeZonedb } from '@/oas/sdk.gen'
+import type { components } from './api'
+import { apiClient } from './apiClient'
+
+type SystemConfig = components['schemas']['SystemConfig']
+type SystemConfigUpdate = components['schemas']['SystemConfigUpdate']
 
 type Timezone = {
-  name?: string
-  rule?: string
+  name: string
+  rule: string
+}
+
+type SelectOption = {
+  label: string
+  value: string
 }
 
 export const useSystemConfigStore = defineStore('systemConfig', () => {
@@ -34,7 +42,7 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
   })
 
   // Transform available timezones into select menu options
-  const timezoneOptions = computed(() => {
+  const timezoneOptions = computed<SelectOption[]>(() => {
     if (availableTimezones.value.length === 0) {
       // Fallback to popular timezones if API not available
       return [
@@ -55,12 +63,12 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
 
     // Sort timezones by region and city for better UX
     return availableTimezones.value
-      .map((tz: Timezone) => ({
-        label: formatTimezoneLabel(tz.name ?? ''),
-        value: tz.name ?? ''
+      .map((tz: Timezone): SelectOption => ({
+        label: formatTimezoneLabel(tz.name),
+        value: tz.name
       }))
-      .filter(tz => tz.value !== '') // Remove invalid timezones
-      .sort((a, b) => a.label.localeCompare(b.label))
+      .filter((tz: SelectOption) => tz.value !== '') // Remove invalid timezones
+      .sort((a: SelectOption, b: SelectOption) => a.label.localeCompare(b.label))
   })
 
   // Helper function to format timezone names for display
@@ -99,12 +107,12 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
   // Actions
   const fetchAvailableTimezones = async () => {
     try {
-      const response = await getApiTimeZonedb()
-      if (response.error) {
+      const { data, error: tzError } = await apiClient.GET('/api/time/zonedb')
+      if (tzError) {
         console.warn('Failed to fetch timezones from API, using fallback list')
         return
       }
-      availableTimezones.value = response.data || []
+      availableTimezones.value = data || []
     } catch (err) {
       console.warn('Failed to fetch available timezones:', err)
       // Will fall back to hardcoded list in computed property
@@ -116,12 +124,12 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
     error.value = null
 
     try {
-      const response = await getApiSystemConfig()
-      if (response.error) {
-        throw new Error(String(response.error))
+      const { data, error: fetchError } = await apiClient.GET('/api/system/config')
+      if (fetchError) {
+        throw fetchError
       }
 
-      systemConfig.value = response.data || null
+      systemConfig.value = data || null
       lastUpdated.value = new Date()
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to fetch system config'
@@ -131,18 +139,22 @@ export const useSystemConfigStore = defineStore('systemConfig', () => {
     }
   }
 
-  const updateSystemConfig = async (update: SystemConfig) => {
+  const updateSystemConfig = async (update: SystemConfigUpdate) => {
     loading.value = true
     error.value = null
 
     try {
-      const response = await postApiSystemConfig({ body: update })
-      if (response.error) {
-        throw new Error(String(response.error))
+      const { data, error: updateError } = await apiClient.POST('/api/system/config', { body: update })
+      if (updateError) {
+        throw updateError
       }
 
-      // Fetch updated config
-      await fetchSystemConfig()
+      if (data) {
+        systemConfig.value = data as SystemConfig
+        lastUpdated.value = new Date()
+      } else {
+        await fetchSystemConfig()
+      }
     } catch (err) {
       error.value = err instanceof Error ? err.message : 'Failed to update system config'
       console.error('Failed to update system config:', err)

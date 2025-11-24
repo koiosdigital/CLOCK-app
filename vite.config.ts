@@ -2,25 +2,27 @@ import { fileURLToPath, URL } from 'node:url'
 
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import uiPro from '@nuxt/ui-pro/vite'
-import { espViteBuild } from '@aidenvigue/vite-plugin-static-c'
+import { espViteBuild } from 'vite-plugin-c'
+import tailwindcss from '@tailwindcss/vite'
+import ui from '@nuxt/ui/vite'
 
 // https://vitejs.dev/config/
 export default defineConfig({
   plugins: [
     vue(),
-    uiPro({
+    tailwindcss(),
+    espViteBuild(),
+    ui({
       ui: {
         colors: {
           primary: 'green',
           neutral: 'slate'
-        }
+        },
       },
       theme: {
         colors: []
       }
     }),
-    espViteBuild()
   ],
   resolve: {
     alias: {
